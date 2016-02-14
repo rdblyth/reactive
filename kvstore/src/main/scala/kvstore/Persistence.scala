@@ -1,6 +1,6 @@
 package kvstore
 
-import akka.actor.{Props, Actor}
+import akka.actor.{ Props, Actor }
 import scala.util.Random
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -16,10 +16,20 @@ object Persistence {
 class Persistence(flaky: Boolean) extends Actor {
   import Persistence._
 
+  var expectedId = 0;
+
   def receive = {
-    case Persist(key, _, id) =>
-      if (!flaky || Random.nextBoolean()) sender ! Persisted(key, id)
-      else throw new PersistenceException
+    case Persist(key, _, id) => {
+      println(s"Got Persist Message for id=$id")
+      if (id < expectedId) sender ! Persisted(key, id)
+      else if (id == expectedId) {
+        if (!flaky || Random.nextBoolean()) {
+          println(s"Sending Persisted Confirmation for id=$id")
+          expectedId += 1
+          sender ! Persisted(key, id)
+        } else throw new PersistenceException
+      }
+    }
   }
 
 }
