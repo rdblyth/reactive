@@ -12,9 +12,11 @@ import TweetLength.MaxTweetLength
 @RunWith(classOf[JUnitRunner])
 class CalculatorSuite extends FunSuite with ShouldMatchers {
 
-  /******************
-   ** TWEET LENGTH **
-   ******************/
+  /**
+   * ****************
+   * * TWEET LENGTH **
+   * ****************
+   */
 
   def tweetLength(text: String): Int =
     text.codePointCount(0, text.length)
@@ -33,7 +35,6 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
     assert(result() == MaxTweetLength - tweetLength("foo blabla \uD83D\uDCA9 bar"))
   }
 
-
   test("colorForRemainingCharsCount with a constant signal") {
     val resultGreen1 = TweetLength.colorForRemainingCharsCount(Var(52))
     assert(resultGreen1() == "green")
@@ -51,4 +52,13 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
     assert(resultRed2() == "red")
   }
 
+  test("polynomial delta is zero") {
+    val delta = Polynomial.computeDelta(Var(1), Var(2), Var(1))
+    assert(delta() === 0)
+  }
+
+  test("polynomial delta is negative") {
+    val delta = Polynomial.computeDelta(Var(2), Var(2), Var(1))
+    assert(delta() === -4)
+  }
 }
