@@ -30,8 +30,63 @@ class NodeScalaSuite extends FunSuite {
       case t: TimeoutException => // ok!
     }
   }
-
+  test("all returns a future with a list of values from given list of futures") {
+    val futures = List(Future.always(1), Future.always(2), Future.always(3))
+    val allFuture = Future.all(futures)
+    
+    assert(Await.result(allFuture, 1 second) == List(1, 2, 3))
+  }
+  test("all fails if any future fails") {
+    val futures = List(Future.always(1), Future.always(2), Future{2/0})
+    
+    try {
+      Await.result(Future.all(futures), 1 second)
+      assert(false)
+    } catch {
+      case t: Throwable => // ok!
+    }
+  }
+  test("any returns the value of the future that completed first from the given list of futures") {
+    val futures = List(Future.never[Int], Future.always(2), Future.never[Int])
+    assert(Await.result(Future.any(futures), 1 second) == 2)
+  }
+  test("any fails if first future fails") {
+    val futures = List(Future.never[Int], Future{2/0}, Future.never[Int])
+    try {
+      Await.result(Future.any(futures), 1 second)
+      assert(false)
+    } catch {
+      case t: Throwable => // ok!
+    }
+  }
   
+  test("now returns result of future if it is completed now") {
+    assert(Future.always(5).now === 5)
+  }
+  
+  test("now throws a NoSuchElementException if future is not completed now") {
+    try {
+      Future.delay(1 second).now
+      assert(false)
+    } catch {
+      case t: NoSuchElementException => //ok!
+    }
+  }
+  
+  test("continueWith") {
+    val f1 = Future.always(5)
+    val f2 = f1.continueWith {
+      f => "Your number is " + f.value.get.get
+    }
+    
+    assert(Await.result(f2, 1 second) === "Your number is 5")
+  }
+  
+  test("continueWith2") {
+    val f1 = Future.delay(2 seconds)
+    val f2 = f1.continueWith { f => "foo"}
+    assert(Await.result(f2, 3 second) === "foo")
+  }
   
   class DummyExchange(val request: Request) extends Exchange {
     @volatile var response = ""
@@ -112,6 +167,29 @@ class NodeScalaSuite extends FunSuite {
     test(immutable.Map("WorksForThree" -> List("Always works. Trust me.")))
 
     dummySubscription.unsubscribe()
+  }
+  test("Server should be stoppable if receives infinite  response") {
+    val dummy = new DummyServer(8191)
+    val dummySubscription = dummy.start("/testDir") {
+      request => Iterator.continually("a")
+    }
+
+    // wait until server is really installed
+    Thread.sleep(500)
+
+    val webpage = dummy.emit("/testDir", Map("Any" -> List("thing")))
+    try {
+      // let's wait some time
+      Await.result(webpage.loaded.future, 1 second)
+      fail("infinite response ended")
+    } catch {
+      case e: TimeoutException =>
+    }
+
+    // stop everything
+    dummySubscription.unsubscribe()
+    Thread.sleep(500)
+    webpage.loaded.future.now // should not get NoSuchElementException
   }
 
 }

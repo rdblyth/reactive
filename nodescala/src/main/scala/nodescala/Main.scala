@@ -25,17 +25,26 @@ object Main {
     // TO IMPLEMENT
     // 3. create a future that completes after 20 seconds
     //    and continues with a `"Server timeout!"` message
-    val timeOut: Future[String] = ???
+    val timeOut: Future[String] = Future.delay(20 seconds).continueWith { f => "Server timeout!" }
 
     // TO IMPLEMENT
     // 4. create a future that completes when either 20 seconds elapse
     //    or the user enters some text and presses ENTER
-    val terminationRequested: Future[String] = ???
+    val terminationRequested: Future[String] = {
+      val p = Promise[String]
+      timeOut.onComplete { p.tryComplete(_) }
+      userInterrupted.onComplete { p.tryComplete(_) }
+      p.future
+    }
 
     // TO IMPLEMENT
     // 5. unsubscribe from the server
     terminationRequested onSuccess {
-      case msg => ???
+      case msg => {
+        println(msg)
+        myServerSubscription.unsubscribe()
+        println("Bye!")
+      }
     }
   }
 
