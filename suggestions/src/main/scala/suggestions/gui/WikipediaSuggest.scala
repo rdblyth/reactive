@@ -39,6 +39,7 @@ object WikipediaSuggest extends SimpleSwingApplication with ConcreteSwingApi wit
     }
     val searchTermField = new TextField
     val suggestionList = new ListView(ListBuffer[String]())
+    suggestionList.focusable = false
     val status = new Label(" ")
     val editorpane = new EditorPane {
       import javax.swing.border._
@@ -81,51 +82,56 @@ object WikipediaSuggest extends SimpleSwingApplication with ConcreteSwingApi wit
      */
 
     // TO IMPLEMENT
-    val searchTerms: Observable[String] = ???
+    val searchTerms: Observable[String] = searchTermField.textValues
 
     // TO IMPLEMENT
-    val suggestions: Observable[Try[List[String]]] = ???
+    val suggestions: Observable[Try[List[String]]] = searchTerms.concatRecovered(wikiSuggestResponseStream)
 
     // TO IMPLEMENT
-    val suggestionSubscription: Subscription =  suggestions.observeOn(eventScheduler) subscribe {
-      x => ???
+    val suggestionSubscription: Subscription = suggestions.observeOn(eventScheduler) subscribe {
+      sug =>
+        sug match {
+          case Success(x) => suggestionList.listData = x
+          case Failure(x) =>status.text = x.getMessage
+        }
     }
 
     // TO IMPLEMENT
-    val selections: Observable[String] = ???
+    val selections: Observable[String] = button.clicks
+      .filter{ button => suggestionList.selection.items.nonEmpty }
+      .map(_ => suggestionList.selection.items.head)
 
     // TO IMPLEMENT
-    val pages: Observable[Try[String]] = ???
+    val pages: Observable[Try[String]] = selections.concatRecovered(wikiPageResponseStream)
 
     // TO IMPLEMENT
     val pageSubscription: Subscription = pages.observeOn(eventScheduler) subscribe {
-      x => ???
+      page => page match {
+        case Success(x) => editorpane.text = x
+        case Failure(x) => status.text = x.getMessage
+      }
     }
-
   }
-
 }
-
 
 trait ConcreteWikipediaApi extends WikipediaApi {
   def wikipediaSuggestion(term: String) = Search.wikipediaSuggestion(term)
   def wikipediaPage(term: String) = Search.wikipediaPage(term)
 }
 
-
 trait ConcreteSwingApi extends SwingApi {
   type ValueChanged = scala.swing.event.ValueChanged
   object ValueChanged {
     def unapply(x: Event) = x match {
       case vc: ValueChanged => Some(vc.source.asInstanceOf[TextField])
-      case _ => None
+      case _                => None
     }
   }
   type ButtonClicked = scala.swing.event.ButtonClicked
   object ButtonClicked {
     def unapply(x: Event) = x match {
       case bc: ButtonClicked => Some(bc.source.asInstanceOf[Button])
-      case _ => None
+      case _                 => None
     }
   }
   type TextField = scala.swing.TextField
